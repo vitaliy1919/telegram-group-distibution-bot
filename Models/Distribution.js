@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 let distributionSchema = new Schema({
+    userId: {
+        type: Number,
+        required: true
+    },
     title: {
         type: String,
         required: true

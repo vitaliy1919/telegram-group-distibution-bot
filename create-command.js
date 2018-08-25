@@ -12,11 +12,10 @@ class CreateCommand {
         this.ctx = null;
         this.currentStage = this.stages["setTitle"];
         this.next = stageEnum.next;
-        this.resultObj = {};
+        this.resultObj = {userId: null};
         this.curSubjectIndex = -1;
         this.okButton = Markup.
         keyboard(["Ok"])
-        .oneTime()
         .resize()
         .extra();
     }
@@ -30,6 +29,7 @@ class CreateCommand {
     }
     
     onCommandCallback(ctx) {
+        this.resultObj.userId = ctx.from.id;
         ctx.reply(`Введіть назву розподілу`);
     }
 
@@ -42,7 +42,7 @@ class CreateCommand {
     }
     setTitle(text) {
         if (this.resultObj.title && text.toLowerCase() === "ok") {
-            this.ctx.reply("Введіть назви предметів \n(одне повідомлення, по одному предмету на рядок)", Markup.removeKeyboard());
+            this.ctx.reply("Введіть назви предметів \n(одне повідомлення, по одному предмету на рядок)", Markup.removeKeyboard().extra());
             this.setNextStage();
             return {
                 finished: false,
@@ -59,7 +59,7 @@ class CreateCommand {
             this.setNextStage();
             this.ctx.reply(
                 `Введіть інформацію про групи з предмету "${this.resultObj.subjects[this.curSubjectIndex]}"`,
-                Markup.removeKeyboard());
+                Markup.removeKeyboard().extra());
                 return {
                     finished: false,
                     resultObj: this.resultObj
@@ -76,7 +76,7 @@ class CreateCommand {
             ++this.curSubjectIndex;
             if (this.curSubjectIndex >= this.resultObj.subjects.length) {
                 this.setNextStage();
-                this.ctx.reply(`Введіть максимальну кількість людей в групі`, Markup.removeKeyboard());
+                this.ctx.reply(`Введіть максимальну кількість людей в групі`, Markup.removeKeyboard().extra());
                 return {
                     finished: false,
                     resultObj: this.resultObj
@@ -95,10 +95,10 @@ class CreateCommand {
     setMaxPeopleInGroup(text) {
         const number = Number(text);
         if (isNaN(number)) {
-            return this.ctx.reply("Відповідь повинна бути числом", Markup.removeKeyboard());
+            return this.ctx.reply("Відповідь повинна бути числом", Markup.removeKeyboard().extra());
         }
         this.resultObj.maxPeopleInGroup = number;
-        this.ctx.reply("Ви іспішно створили новий розподіл, щоб розпочати його введіть /begin", Markup.removeKeyboard());
+        this.ctx.reply("Ви іспішно створили новий розподіл, щоб розпочати його введіть /begin", Markup.removeKeyboard().extra());
         this.setNextStage();        
         return {
             finished: true,
@@ -108,7 +108,7 @@ class CreateCommand {
 
 
     onTextCallback(ctx) {
-        if (!this.currentStage)
+        if (!this.currentStage || ctx.from.id !== this.resultObj.userId)
             return;
         const stages = this.stages;
         const stagesNames = this.stagesStrings;

@@ -2,7 +2,8 @@ const {mongoose} = require("./db/mongoose");
 const fs = require('fs');
 const readline = require('readline');
 const { google } = require('googleapis');
-const { DistributionModel} = require("./Models/Distribution");
+const {ChatModel} = require('./Models/Chat');
+
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly','https://www.googleapis.com/auth/spreadsheets','https://www.googleapis.com/auth/drive'];
 const TOKEN_PATH = 'token.json';
@@ -15,19 +16,16 @@ let bot_id;
 const Extra = require('telegraf/extra')
 const Markup = require('telegraf/markup')
 const fetch = require('node-fetch')
-const {ChatModel} = require('./Models/Chat');
 const bot = new Telegraf("626725747:AAFvqC67H-SA1NjCM3OtcZPcTjK2waW3YaI", {username:"automatic_group_distribution_bot"});
 bot.telegram.getMe().then((res)=>{
     bot_id = res.id;
     console.log(res);
 })
 const {CreateCommand} = require("./create-command");
+const {BeginCommand} = require("./begin-command");
 let createCommand = null;
-let obj = {
+let beginCommand = null;
 
-};
-// // Register session middleware
-//bot.use(Telegraf.log())
 
 
 bot.on("left_chat_member", (ctx) => {
@@ -61,18 +59,7 @@ bot.on("new_chat_members", (ctx) => {
     //console.log(JSON.stringify(ctx.update, undefined, 2));
     
 })
-// Register logger middleware
-// bot.use((ctx, next) => {
-//   const start = new Date()
-//   return next().then(() => {
-//     const ms = new Date() - start
-//     console.log('response time %sms', ms)
-//   })
-// })
 
-  //bot.use(Telegraf.log())
-
- 
 let credentials;
 fs.readFile('credentials.json', (err, content) => {
     if (err) return console.log('Error loading client secret file:', err);
@@ -100,35 +87,17 @@ fs.readFile('credentials.json', (err, content) => {
     // });
     console.log("Credentials loaded");
 });
-let current_bot_chats;
-let chooseChat = false;
-let chooseSubjects = false;
-let chooseInfo = false;
-let curSubjectIndex = -1;
-let chooseMaxGroopNumber = false;
+
 bot.command('create', (ctx) => {
     createCommand = new CreateCommand();
     createCommand.onCommandCallback(ctx);
-    // chooseChat = false;
-    // chooseSubjects = false;
-    // chooseInfo = false;
-    // chooseMaxGroopNumber = false;
-    // curSubjectIndex = -1;
-    // if (ctx.message.chat.type !== 'private')
-    //     return;
-    // ChatModel.find().then((chats) => {
-    //     if (chats.length == 0)
-    //         return ctx.reply("Зараз бот не знаходиться в жодному чаті. Додайте бота в необхідний чат і спробуйте знову");
-    //     chooseChat = true;
-    //     current_bot_chats = chats;
-    //     const buttons = chats.map((chat, index) => [chat.title]);
-    //     return ctx.reply("Оберіть чат, в якому плануєте провести розприділення", Markup.
-    //     keyboard(buttons)
-    //     .oneTime()
-    //     .resize()
-    //     .extra());
-    // })
-    //return reply("Оберіть чат, де ")
+})
+
+bot.command("begin", (ctx) => {
+    let id  = ctx.from.id;
+    console.log("id type", typeof id);
+    beginCommand = new BeginCommand();
+    beginCommand.onCommandCallback(ctx);
 })
 bot.on("text", (ctx) => {
     if (createCommand && !createCommand.isFinished()) {
@@ -136,13 +105,17 @@ bot.on("text", (ctx) => {
         if (createCommand.isFinished()) {
             const resultObj = createCommand.getResultObj();
             const newDist = new DistributionModel(resultObj);
+            createCommand = null;
             newDist.save().then((res) => {
                 console.log("succesfully saved");
             }).catch((e) => {
                 console.log("error while saving", e.message);
             })
         }
+    }
 
+    if (beginCommand && !beginCommand.isFinished()) {
+        beginCommand.onTextCallback(ctx);
     }
     // const text = ctx.message.text;
     // if (chooseChat) {
