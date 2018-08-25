@@ -3,6 +3,7 @@ const fs = require('fs');
 const readline = require('readline');
 const { google } = require('googleapis');
 const {ChatModel} = require('./Models/Chat');
+const { DistributionModel} = require("./Models/Distribution");
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly','https://www.googleapis.com/auth/spreadsheets','https://www.googleapis.com/auth/drive'];
@@ -25,8 +26,32 @@ const {CreateCommand} = require("./create-command");
 const {BeginCommand} = require("./begin-command");
 let createCommand = null;
 let beginCommand = null;
+const {SpreadSheetSpecialTables} = require("./spreadsheet-table");
 
+let obj = { 
+    "subjects" : [
+        "Предмет 1", 
+        "Предмет 2"
+    ], 
+    "subjectsInfo" : [
+        [
+            "Іванов", 
+            "Петров"
+        ], 
+        [
+            "Сидоров", 
+            "Котельников"
+        ]
+    ], 
+    "userId" : Number(230103105), 
+    "title" : "Новий 1", 
+    "maxPeopleInGroup" : Number(11)
+};
 
+let spr = new SpreadSheetSpecialTables(obj);
+spr.createTablesInSpreadSheet().then((res) => {
+    console.log(res);
+}).catch(e => console.log(e));
 
 bot.on("left_chat_member", (ctx) => {
     console.log("Member left");
@@ -90,6 +115,7 @@ fs.readFile('credentials.json', (err, content) => {
 
 bot.command('create', (ctx) => {
     createCommand = new CreateCommand();
+    beginCommand = null;
     createCommand.onCommandCallback(ctx);
 })
 
@@ -97,6 +123,12 @@ bot.command("begin", (ctx) => {
     let id  = ctx.from.id;
     console.log("id type", typeof id);
     beginCommand = new BeginCommand();
+    сreateCommand = null;
+    // beginCommand.createAndModifySpreadSheet().then((res) => {
+    //     console.log(res.data);
+    // }).catch((e) => {
+    //     console.log(e.message);
+    // });
     beginCommand.onCommandCallback(ctx);
 })
 bot.on("text", (ctx) => {
@@ -114,7 +146,7 @@ bot.on("text", (ctx) => {
         }
     }
 
-    if (beginCommand && !beginCommand.isFinished()) {
+    if (beginCommand && beginCommand.ready && !beginCommand.isFinished()) {
         beginCommand.onTextCallback(ctx);
     }
     // const text = ctx.message.text;

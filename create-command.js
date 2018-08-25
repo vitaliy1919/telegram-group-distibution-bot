@@ -20,6 +20,8 @@ class CreateCommand {
         .extra();
     }
 
+    
+
     setCtx(ctx) {
         this.ctx = ctx;
     }
@@ -72,7 +74,9 @@ class CreateCommand {
     }
     
     setSubjectInfo(text) {
-        if (this.resultObj.subjectsInfo && text.toLowerCase() === "ok") {
+        if (this.resultObj.subjectsInfo 
+            && this.resultObj.subjectsInfo[this.curSubjectIndex]
+            && text.toLowerCase() === "ok") {
             ++this.curSubjectIndex;
             if (this.curSubjectIndex >= this.resultObj.subjects.length) {
                 this.setNextStage();
@@ -82,7 +86,7 @@ class CreateCommand {
                     resultObj: this.resultObj
                 };
             }
-            return this.ctx.reply(`Введіть інформацію про групи з предмету "${this.resultObj.subjects[this.curSubjectIndex]}"`, Markup.removeKeyboard());
+            return this.ctx.reply(`Введіть інформацію про групи з предмету "${this.resultObj.subjects[this.curSubjectIndex]}"`, Markup.removeKeyboard().extra());
         }
         let info = text.split("\n");
         if (!this.resultObj.subjectsInfo)
