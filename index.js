@@ -2,7 +2,7 @@ const {mongoose} = require("./db/mongoose");
 const fs = require('fs');
 const readline = require('readline');
 const { google } = require('googleapis');
-
+const { DistributionModel} = require("./Models/Distribution");
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly','https://www.googleapis.com/auth/spreadsheets','https://www.googleapis.com/auth/drive'];
 const TOKEN_PATH = 'token.json';
@@ -21,12 +21,13 @@ bot.telegram.getMe().then((res)=>{
     bot_id = res.id;
     console.log(res);
 })
-
+const {CreateCommand} = require("./create-command");
+let createCommand = null;
 let obj = {
 
 };
 // // Register session middleware
-bot.use(Telegraf.log())
+//bot.use(Telegraf.log())
 
 
 bot.on("left_chat_member", (ctx) => {
@@ -61,13 +62,13 @@ bot.on("new_chat_members", (ctx) => {
     
 })
 // Register logger middleware
-bot.use((ctx, next) => {
-  const start = new Date()
-  return next().then(() => {
-    const ms = new Date() - start
-    console.log('response time %sms', ms)
-  })
-})
+// bot.use((ctx, next) => {
+//   const start = new Date()
+//   return next().then(() => {
+//     const ms = new Date() - start
+//     console.log('response time %sms', ms)
+//   })
+// })
 
   //bot.use(Telegraf.log())
 
@@ -106,108 +107,123 @@ let chooseInfo = false;
 let curSubjectIndex = -1;
 let chooseMaxGroopNumber = false;
 bot.command('create', (ctx) => {
-    chooseChat = false;
-    chooseSubjects = false;
-    chooseInfo = false;
-    chooseMaxGroopNumber = false;
-    curSubjectIndex = -1;
-    if (ctx.message.chat.type !== 'private')
-        return;
-    ChatModel.find().then((chats) => {
-        if (chats.length == 0)
-            return ctx.reply("Зараз бот не знаходиться в жодному чаті. Додайте бота в необхідний чат і спробуйте знову");
-        chooseChat = true;
-        current_bot_chats = chats;
-        const buttons = chats.map((chat, index) => [chat.title]);
-        return ctx.reply("Оберіть чат, в якому плануєте провести розприділення", Markup.
-        keyboard(buttons)
-        .oneTime()
-        .resize()
-        .extra());
-    })
+    createCommand = new CreateCommand();
+    createCommand.onCommandCallback(ctx);
+    // chooseChat = false;
+    // chooseSubjects = false;
+    // chooseInfo = false;
+    // chooseMaxGroopNumber = false;
+    // curSubjectIndex = -1;
+    // if (ctx.message.chat.type !== 'private')
+    //     return;
+    // ChatModel.find().then((chats) => {
+    //     if (chats.length == 0)
+    //         return ctx.reply("Зараз бот не знаходиться в жодному чаті. Додайте бота в необхідний чат і спробуйте знову");
+    //     chooseChat = true;
+    //     current_bot_chats = chats;
+    //     const buttons = chats.map((chat, index) => [chat.title]);
+    //     return ctx.reply("Оберіть чат, в якому плануєте провести розприділення", Markup.
+    //     keyboard(buttons)
+    //     .oneTime()
+    //     .resize()
+    //     .extra());
+    // })
     //return reply("Оберіть чат, де ")
 })
 bot.on("text", (ctx) => {
-    const text = ctx.message.text;
-    if (chooseChat) {
-        let chat = current_bot_chats.find((elem) => {
-            return elem.title === text;
-        });
-        if (!chat) {
-            return ctx.reply(`Бот зараз не знаходиться в чаті "${text}"`);
+    if (createCommand && !createCommand.isFinished()) {
+        createCommand.onTextCallback(ctx);
+        if (createCommand.isFinished()) {
+            const resultObj = createCommand.getResultObj();
+            const newDist = new DistributionModel(resultObj);
+            newDist.save().then((res) => {
+                console.log("succesfully saved");
+            }).catch((e) => {
+                console.log("error while saving", e.message);
+            })
         }
-        obj.chatId = chat.id;
-        chooseChat = false;
-        console.log("Chat id inited");
-        ctx.reply("Введіть назви предметів \n(одне повідомлення, по одному предмету на рядок)", Markup.removeKeyboard());
-        chooseSubjects = true;
-    } else if (chooseSubjects) {
-        if (text.toLowerCase() === "ok") {
-            chooseSubjects = false;
-            chooseInfo = true;
-            curSubjectIndex = 0;
-            ctx.reply(`Введіть інформацію про групи з предмету "${obj.subjects[curSubjectIndex]}"`, Markup.removeKeyboard());
-            return;
-        }
-        let subjects = text.split("\n");
-        obj.subjects = subjects;
 
-        console.log(subjects);
-        ctx.reply(`Обрано предмети: ${subjects.join(', ')}\n(Введіть ще раз, якщо хочете змінити вибір)`,Markup.
-        keyboard(["Ok"])
-        .oneTime()
-        .resize()
-        .extra());        
-    } else if (chooseInfo) {
-        if (text.toLowerCase() === "ok") {
-            ++curSubjectIndex;
-            if (curSubjectIndex >= obj.subjects.length) {
-                chooseMaxGroopNumber = true;
-                chooseInfo = false;
-                return ctx.reply(`Введіть максимальну кількість людей в групі`, Markup.removeKeyboard());
-            }
-            return ctx.reply(`Введіть інформацію про групи з предмету "${obj.subjects[curSubjectIndex]}"`, Markup.removeKeyboard());
-        }
-        let info = text.split("\n");
-        if (!obj.subjectsInfo)
-            obj.subjectsInfo = [];
-        obj.subjectsInfo.push(info);
-        ctx.reply(`Обрано інформацію: ${info.join(', ')}\n(Введіть ще раз, якщо хочете змінити вибір)`,Markup.
-        keyboard(["Ok"])
-        .oneTime()
-        .resize()
-        .extra());   
-    } else if (chooseMaxGroopNumber) {
-        const number = Number(text);
-        if (isNaN(number)) {
-            return ctx.reply("Відповідь повинна бути числом", Markup.removeKeyboard());
-        }
-        obj.maxPeopleInGroup = number;
-        ctx.reply("Ви іспішно створили новий розподіл, щоб розпочати його введіть /begin", Markup.removeKeyboard());
+    }
+    // const text = ctx.message.text;
+    // if (chooseChat) {
+    //     let chat = current_bot_chats.find((elem) => {
+    //         return elem.title === text;
+    //     });
+    //     if (!chat) {
+    //         return ctx.reply(`Бот зараз не знаходиться в чаті "${text}"`);
+    //     }
+    //     obj.chatId = chat.id;
+    //     chooseChat = false;
+    //     console.log("Chat id inited");
+    //     ctx.reply("Введіть назви предметів \n(одне повідомлення, по одному предмету на рядок)", Markup.removeKeyboard());
+    //     chooseSubjects = true;
+    // } else if (chooseSubjects) {
+    //     if (text.toLowerCase() === "ok") {
+    //         chooseSubjects = false;
+    //         chooseInfo = true;
+    //         curSubjectIndex = 0;
+    //         ctx.reply(`Введіть інформацію про групи з предмету "${obj.subjects[curSubjectIndex]}"`, Markup.removeKeyboard());
+    //         return;
+    //     }
+    //     let subjects = text.split("\n");
+    //     obj.subjects = subjects;
 
-        authorize(credentials, (auth) => {
-        console.log(auth);
-        const sheets = google.sheets({ version: 'v4', auth })
-        let request = {
-            resource: {
-                properties: {
-                    title: "Test"
-                }
-            }
-            //auth
-                // TODO: Add desired properties to the request body.
-        };
-        sheets.spreadsheets.create(request, (err,res) => {
-            if (err)
-                return console.log(err);
-            obj.spreadsheetId = res.data.spreadsheetId;
-            ctx.reply(`Таблиця для зберігання результатів створена: ${res.data.spreadsheetUrl}`, Markup.removeKeyboard());
-            //console.log(res);
-        });
-    });
+    //     console.log(subjects);
+    //     ctx.reply(`Обрано предмети: ${subjects.join(', ')}\n(Введіть ще раз, якщо хочете змінити вибір)`,Markup.
+    //     keyboard(["Ok"])
+    //     .oneTime()
+    //     .resize()
+    //     .extra());        
+    // } else if (chooseInfo) {
+    //     if (text.toLowerCase() === "ok") {
+    //         ++curSubjectIndex;
+    //         if (curSubjectIndex >= obj.subjects.length) {
+    //             chooseMaxGroopNumber = true;
+    //             chooseInfo = false;
+    //             return ctx.reply(`Введіть максимальну кількість людей в групі`, Markup.removeKeyboard());
+    //         }
+    //         return ctx.reply(`Введіть інформацію про групи з предмету "${obj.subjects[curSubjectIndex]}"`, Markup.removeKeyboard());
+    //     }
+    //     let info = text.split("\n");
+    //     if (!obj.subjectsInfo)
+    //         obj.subjectsInfo = [];
+    //     obj.subjectsInfo.push(info);
+    //     ctx.reply(`Обрано інформацію: ${info.join(', ')}\n(Введіть ще раз, якщо хочете змінити вибір)`,Markup.
+    //     keyboard(["Ok"])
+    //     .oneTime()
+    //     .resize()
+    //     .extra());   
+    // } else if (chooseMaxGroopNumber) {
+    //     const number = Number(text);
+    //     if (isNaN(number)) {
+    //         return ctx.reply("Відповідь повинна бути числом", Markup.removeKeyboard());
+    //     }
+    //     obj.maxPeopleInGroup = number;
+    //     ctx.reply("Ви іспішно створили новий розподіл, щоб розпочати його введіть /begin", Markup.removeKeyboard());
+
+    //     authorize(credentials, (auth) => {
+    //     console.log(auth);
+    //     const sheets = google.sheets({ version: 'v4', auth })
+    //     let request = {
+    //         resource: {
+    //             properties: {
+    //                 title: "Test"
+    //             }
+    //         }
+    //         //auth
+    //             // TODO: Add desired properties to the request body.
+    //     };
+    //     sheets.spreadsheets.create(request, (err,res) => {
+    //         if (err)
+    //             return console.log(err);
+    //         obj.spreadsheetId = res.data.spreadsheetId;
+    //         ctx.reply(`Таблиця для зберігання результатів створена: ${res.data.spreadsheetUrl}`, Markup.removeKeyboard());
+    //         //console.log(res);
+    //     });
+    //});
     
         
-        // sheets.spreadsheets.values.get({
+        // sheets.spreadsheets.values.ggiet({
         //     spreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
         //     range: 'Class Data!A2:E',
         // }.then((res) => {
@@ -225,7 +241,7 @@ bot.on("text", (ctx) => {
         //         console.log('No data found.');
         //     }
         // });
-    }
+    //}
 
 })
 

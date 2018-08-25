@@ -10,7 +10,7 @@ let distributionSchema = new Schema({
         type: String,
         required: true,
     }],
-    subjectInfo: [
+    subjectsInfo: [
         [{
             type: String, 
             required: true
