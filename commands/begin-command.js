@@ -1,11 +1,12 @@
-const {DistributionInfoModel} = require("./Models/DistrubutionInfo");
-const {makeSequentialEnum} = require("./enum");
+const {DistributionInfoModel} = require("../Models/DistrubutionInfo");
+const {makeSequentialEnum} = require("../utils/enum");
 const Markup = require('telegraf/markup')
-const { DistributionModel} = require("./Models/Distribution");
-const {SpreadSheetSpecialTables} = require("./spreadsheet-table");
-const {ChatModel} = require('./Models/Chat');
-const {authorize} = require("./google-spreadsheets-auth");
+const { DistributionModel} = require("../Models/Distribution");
+const {SpreadSheetSpecialTables} = require("../utils/spreadsheet-table");
+const {ChatModel} = require('../Models/Chat');
+const {authorize} = require("../utils/google-spreadsheets-auth");
 const { google } = require('googleapis');
+const {sendMessage} = require('./../utils/telegram-utils');
 
 class BeginCommand {
     constructor() {
@@ -41,13 +42,21 @@ class BeginCommand {
             }
 
             this.distributions = distributions;
+            let distributionInfos = await DistributionInfoModel.find();
+            
+            let usedChatsIdsSet = new Set();
+            distributionInfos.forEach((info)=>usedChatsIdsSet.add(info.chatId.toHexString()));
             let chats = await ChatModel.find();
+        
             if (chats.length === 0) { 
                 return { message: `Бот повинен перебувати в чаті`};
             }
+            let unusedChats = chats.filter((chat) => !usedChatsIdsSet.has(chat._id.toHexString()));
+            if (unusedChats.length === 0)
+                return { message: `У всіх чатах, де зараз бот, вже проводиться розподіл.\nРозподіл можна зупинити за допомогою /stop`}
             this.chats = chats;
         } catch(e) {
-            console.log("Error happened in /begin command:", e.message)
+            console.log("Error happened in /begin command:", e.message, e)
         }
     }
     onCommandCallback(ctx) {
@@ -79,7 +88,7 @@ class BeginCommand {
     setDistribution(text) {
         if (this.resultObj.distributionId && text.toLowerCase() === "ok") {
             this.ctx.reply(`Оберіть чат, де хочете провести розподіл`, Markup.
-            keyboard( this.chats.map((chat)=>[chat.title]) )
+            keyboard( this.chats.map((chat) => [chat.title]) )
             .resize()
             .extra());
             this.setNextStage();
@@ -99,12 +108,52 @@ class BeginCommand {
             console.log(this.resultObj);
             let spreadsheet = new SpreadSheetSpecialTables(this.distribution);
             //this.ctx.reply('', Markup.removeKeyboard().extra());
-            let distInfo = new DistributionInfoModel(this.resultObj);
-            distInfo.save().then((res) => {
-                console.log("Distribution info was successfully saved");
-            }).catch(e => console.log("Error happened while saving distribution info", r.message));
+            this.setNextStage();
             spreadsheet.createTablesInSpreadSheet().then((res) => {
                 this.ctx.reply(`${res.data.spreadsheetUrl}`);
+                
+                this.resultObj.spreadsheetId = res.data.spreadsheetId;
+                this.resultObj.spreadsheetUrl = res.data.spreadsheetUrl;
+
+                this.resultObj.sheetId = res.data.sheets[0].properties.sheetId;
+                this.resultObj.sheetTitle = res.data.sheets[0].properties.title;
+
+                let distInfo = new DistributionInfoModel(this.resultObj);
+
+                distInfo.save().then((res) => {
+                    console.log("Distribution info was successfully saved");
+                    let answerString = `У чаті почався розподіл\n`;
+                    this.distribution.subjects.forEach((elem, index) => {
+                        answerString += "_" + elem +"_:\n";
+                        this.distribution.subjectsInfo[index].forEach((elem, index) => {
+                            answerString += `\t*${index + 1}*: ${elem}\n`;
+                        })
+                    })
+                    return this.ctx.telegram.sendMessage(this.chat.id, answerString, {
+                        parse_mode: "Markdown"
+                    })                    
+                })
+                .then(() => {
+                    let answerString = "";
+                    answerString += `Для того, щоб обрати групу наберіть \n/answer {номер вчителя для першого предмета} {номер вчителя для другого пердмету} ...\n`;
+                    answerString += `Наприклад, \n/answer`;
+                    let len = this.distribution.subjects.length;
+                    for (let i = 0; i < len; i++ )
+                        answerString += " 1";
+                    answerString += "\n";
+                    answerString += `Означає, що Ви обрали:\n`;
+                    let choice = new Array(len);
+                    choice.fill(0);
+                    let choiceString = "";
+                    this.distribution.subjects.forEach((subject, index) => {
+                        let infoChosen = this.distribution.subjectsInfo[index][choice[index]];
+                        choiceString += subject + ": ";
+                        choiceString += infoChosen + "\n";                                                                                
+                    })
+                    answerString += choiceString;
+                    answerString += `Поточний стан розподілу можна подитися за посиланням: ${this.resultObj.spreadsheetUrl}`;
+                    this.ctx.telegram.sendMessage(this.chat.id, answerString);
+                }).catch(e => console.log("Error happened while saving distribution info", e));
             }).catch(e => console.log("Error happened in setchat:", e))
             return this.ctx.reply(`Ви успішно запустили розподіл`, Markup.removeKeyboard().extra());
         }

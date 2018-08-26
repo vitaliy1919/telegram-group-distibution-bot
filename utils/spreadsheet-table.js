@@ -106,10 +106,10 @@ class SpreadSheetSpecialTables {
                         cell: {
                             userEnteredFormat: {
                                 horizontalAlignment: "CENTER",
-
+                                verticalAlignment: "MIDDLE"
                             }
                         },
-                        fields: "userEnteredFormat(horizontalAlignment)"
+                        fields: "userEnteredFormat(horizontalAlignment,verticalAlignment)"
                     },
 
                 }]
@@ -137,6 +137,22 @@ class SpreadSheetSpecialTables {
                 values: [this.valuesObj.subjectsInfo[index]]
             }
         });
+        let bu = await batchUpdate({
+            spreadsheetId,
+            resource: {
+                requests: [{
+                    autoResizeDimensions: {
+                        dimensions: {
+                            sheetId,
+                            dimension: "COLUMNS",
+                            startIndex: startCollumn,
+                            endIndex: startCollumn + infoLength
+                        }
+                    }
+                }]
+            }
+        })
+        console.log("bu", bu);
     }
     async createTablesInSpreadSheet() {
         let spreadsheet = await this.createSpreadSheet();

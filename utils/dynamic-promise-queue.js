@@ -9,7 +9,7 @@ class PromiseQueue {
         if (this.currentPromises.length === 1)
             this.run().then((results) => {
 
-            });
+            }).catch(e => {throw e});
     }
 
     async run() {
