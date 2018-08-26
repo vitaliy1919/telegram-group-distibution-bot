@@ -11,6 +11,7 @@
   "dependencies": {
     "googleapis": "^27.0.0",
     "mongoose": "^5.2.9",
-    "telegraf": "^3.22.2"
+    "telegraf": "^3.22.2",
+    "telegraf-command-parts": "^1.0.3"
   }
 }

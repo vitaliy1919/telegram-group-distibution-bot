@@ -3,8 +3,10 @@ const Schema = mongoose.Schema;
 const ObjectId = mongoose.SchemaTypes.ObjectId;
 const distributionInfoSchema = new Schema({
     chatId: ObjectId,
-    distributionId: objectId,
-    spreadsheetId: String
+    distributionId: ObjectId,
+    spreadsheetId: String,
+    sheetiD: Number, 
+    sheetTitle: String
 });
 
 const DistributionInfoModel = mongoose.model("distribution-info", distributionInfoSchema);

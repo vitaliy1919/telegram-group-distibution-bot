@@ -12,46 +12,52 @@ const Telegraf = require('telegraf')
 //const Extra = require('telegraf/extra')
 const session = require('telegraf/session')
 const { reply } = Telegraf;
-
+const config = require("./config.json");
 let bot_id;
 const Extra = require('telegraf/extra')
 const Markup = require('telegraf/markup')
 const fetch = require('node-fetch')
-const bot = new Telegraf("626725747:AAFvqC67H-SA1NjCM3OtcZPcTjK2waW3YaI", {username:"automatic_group_distribution_bot"});
+const bot = new Telegraf(config["bot-token"], {username:config.username});
+const commandParts = require('telegraf-command-parts');
+const {PromiseQueue}= require("./dynamic-promise-queue");
+let queue = new PromiseQueue();
 bot.telegram.getMe().then((res)=>{
     bot_id = res.id;
     console.log(res);
 })
+bot.use(commandParts());
+
 const {CreateCommand} = require("./create-command");
 const {BeginCommand} = require("./begin-command");
+const {AnswerCommand} = require("./answer-command");
 let createCommand = null;
 let beginCommand = null;
 const {SpreadSheetSpecialTables} = require("./spreadsheet-table");
 
-let obj = { 
-    "subjects" : [
-        "Предмет 1", 
-        "Предмет 2"
-    ], 
-    "subjectsInfo" : [
-        [
-            "Іванов", 
-            "Петров"
-        ], 
-        [
-            "Сидоров", 
-            "Котельников"
-        ]
-    ], 
-    "userId" : Number(230103105), 
-    "title" : "Новий 1", 
-    "maxPeopleInGroup" : Number(11)
-};
+// let obj = { 
+//     "subjects" : [
+//         "Предмет 1", 
+//         "Предмет 2"
+//     ], 
+//     "subjectsInfo" : [
+//         [
+//             "Іванов", 
+//             "Петров"
+//         ], 
+//         [
+//             "Сидоров", 
+//             "Котельников"
+//         ]
+//     ], 
+//     "userId" : Number(230103105), 
+//     "title" : "Новий 1", 
+//     "maxPeopleInGroup" : Number(11)
+// };
 
-let spr = new SpreadSheetSpecialTables(obj);
-spr.createTablesInSpreadSheet().then((res) => {
-    console.log(res);
-}).catch(e => console.log(e));
+// let spr = new SpreadSheetSpecialTables(obj);
+// spr.createTablesInSpreadSheet().then((res) => {
+//     console.log(res);
+// }).catch(e => console.log(e));
 
 bot.on("left_chat_member", (ctx) => {
     console.log("Member left");
@@ -66,7 +72,12 @@ bot.on("left_chat_member", (ctx) => {
     }
     //console.log(JSON.stringify(ctx.update));
 })
-
+bot.command("answer", (ctx) => {
+    console.log(ctx.message);
+    console.log(ctx.state.command);
+    let ans = new AnswerCommand("1WyutsP44ejjomoZR_GuGJB9uPJk1SrHFue07BioIGxo", 0, "sheet1", ctx.state.command.args);
+    queue.add(ans.onCommandCallback.bind(ans));
+});
 bot.on("new_chat_members", (ctx) => {
     console.log("New member");
     const message = ctx.message;

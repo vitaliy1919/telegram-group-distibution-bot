@@ -76,6 +76,7 @@ class CreateCommand {
     setSubjectInfo(text) {
         if (this.resultObj.subjectsInfo 
             && this.resultObj.subjectsInfo[this.curSubjectIndex]
+            && this.resultObj.subjectsInfo[this.curSubjectIndex][0][0].toLowerCase() !== "ok"
             && text.toLowerCase() === "ok") {
             ++this.curSubjectIndex;
             if (this.curSubjectIndex >= this.resultObj.subjects.length) {
