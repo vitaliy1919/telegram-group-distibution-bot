@@ -54,7 +54,7 @@ class BeginCommand {
             let unusedChats = chats.filter((chat) => !usedChatsIdsSet.has(chat._id.toHexString()));
             if (unusedChats.length === 0)
                 return { message: `У всіх чатах, де зараз бот, вже проводиться розподіл.\nРозподіл можна зупинити за допомогою /stop`}
-            this.chats = chats;
+            this.chats = unusedChats;
         } catch(e) {
             console.log("Error happened in /begin command:", e.message, e)
         }
@@ -124,7 +124,7 @@ class BeginCommand {
                     console.log("Distribution info was successfully saved");
                     let answerString = `У чаті почався розподіл\n`;
                     this.distribution.subjects.forEach((elem, index) => {
-                        answerString += "_" + elem +"_:\n";
+                        answerString += "*" + elem +"*:\n";
                         this.distribution.subjectsInfo[index].forEach((elem, index) => {
                             answerString += `\t*${index + 1}*: ${elem}\n`;
                         })

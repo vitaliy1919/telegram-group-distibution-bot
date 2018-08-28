@@ -27,19 +27,19 @@ class AnswerCommand {
         }
         return this.from.last_name + ' ' + this.from.first_name;
     }
-    async getDistributionByChatId(chatId) {
-        let chat = await ChatModel.findOne({id: chatId});
-        if (!chat) {
-            throw {info: `Чат не знайдено (можливо Ви зараз знаходитесь у приватному чаті з ботом)`};
-        }
-        let distributionInfo = await DistributionInfoModel.findOne({chatId: chat._id});
-        if (!distributionInfo) {
-            throw {info: `Зараз в цьому чаті не проводиться розподіл`};
-        }
+    // async getDistributionByChatId(chatId) {
+    //     let chat = await ChatModel.findOne({id: chatId});
+    //     if (!chat) {
+    //         throw {info: `Чат не знайдено (можливо Ви зараз знаходитесь у приватному чаті з ботом)`};
+    //     }
+    //     let distributionInfo = await DistributionInfoModel.findOne({chatId: chat._id});
+    //     if (!distributionInfo) {
+    //         throw {info: `Зараз в цьому чаті не проводиться розподіл`};
+    //     }
 
-        let distribution = await DistributionModel.findById(distributionInfo.distributionId);
-        return {distribution, distributionInfo};
-    }
+    //     let distribution = await DistributionModel.findById(distributionInfo.distributionId);
+    //     return {distribution, distributionInfo};
+    // }
 
     async getValues(distribution, distributionInfo, columnStart, subjectIndex) {
         await loadCredentials();
@@ -95,26 +95,24 @@ class AnswerCommand {
                 }]
             }
         })
-        console.log(cellVals);
-        console.log(bupdate);
+       // console.log(cellVals);
+        //console.log(bupdate);
     }
-    async complexPromise() {
-        let res = await this.getValues();
-        let length = 0
-        if (res.data.values)
-            length = res.data.values[0].length;
-        console.log("length:", length);
 
-        await this.updateValue(length);
-    }
     async onCommandCallback() {
         try {
             let choice = [];
             let text = await this.returnTextToSend();
-            let {distribution, distributionInfo} = await this.getDistributionByChatId(this.ctx.chat.id)
+            let {distribution, distributionInfo} = await DistributionModel.getDistributionByChatId(this.ctx.chat.id)
             let args = this.ctx.state.command.splitArgs;
+            for (let i = 0; i < args.length; ++i) {
+                let a = Number(args[i]);
+                if (isNaN(a)) {
+                    return sendMessage(this.ctx.from.id, this.ctx, `${i+1} аргумент /answer не є числом`);
+                }
+            }
             if (args.length !== distribution.subjects.length) {
-                return this.ctx.reply(`Ви повинні ввести ${distribution.subjects.length} аргументів для команди /answer`);
+                return sendMessage(this.ctx.from.id, this.ctx, `Ви повинні ввести ${distribution.subjects.length} аргументів для команди /answer`);
             }
             let columnStart = 1;
             let maxPeopleInGroup = distribution.maxPeopleInGroup;
@@ -147,11 +145,11 @@ class AnswerCommand {
             let choiceString = `Ваш розподіл:\n`;
             distribution.subjects.forEach((subject, index) => {
                 let infoChosen = distribution.subjectsInfo[index][choice[index]];
-                choiceString += "_" + subject + "_: ";
+                choiceString += "<strong>" + subject + "</strong>: ";
                 choiceString += infoChosen + "\n";
             });
             choiceString += `Детальніша інформація за посиланням: ${distributionInfo.spreadsheetUrl}`
-            sendMessage(userId, this.ctx, choiceString, {parse_mode: "MARKDOWN"});
+            sendMessage(userId, this.ctx, choiceString, {parse_mode: "HTML"});
         } catch (e) {
             if (e.info) {
                 this.ctx.reply(`${e.info}`)

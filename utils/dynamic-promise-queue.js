@@ -16,7 +16,7 @@ class PromiseQueue {
         let results = [];
         while (this.currentPromises.length > 0) {
             let result = await this.currentPromises[0]();
-            console.log(`Promise ${++this.promiseNumb} waited`);
+            //console.log(`Promise ${++this.promiseNumb} waited`);
             results.push(result);
             this.currentPromises.shift();
         }

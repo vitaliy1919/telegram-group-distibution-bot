@@ -18,7 +18,9 @@ const chatSchema = new Schema({
 });
 
 const ChatModel = mongoose.model("chat", chatSchema);
-
+chatSchema.statics.getDistributionByChatId = function(chatId) {
+    
+}
 module.exports = {
     chatSchema, ChatModel
 }

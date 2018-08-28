@@ -7,7 +7,7 @@ class SpreadSheetSpecialTables {
         this.valuesObj = valuesObj;
         this.auth = null;
         this.sheets = null;
-
+        
     }
 
     async createSpreadSheet() {
@@ -152,7 +152,7 @@ class SpreadSheetSpecialTables {
                 }]
             }
         })
-        console.log("bu", bu);
+        //console.log("bu", bu);
     }
     async createTablesInSpreadSheet() {
         let spreadsheet = await this.createSpreadSheet();
